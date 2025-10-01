@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="PurchaseMapper">
+
+  <!-- =========================================================
+       공통 매핑: Purchase + (buyer: User) + (purchaseProd: Product)
+       ========================================================= -->
+  <resultMap id="PurchaseResult" type="purchase">
+    <id     property="tranNo"          column="tran_no"/>
+    <result property="paymentOption"   column="payment_option"/>
+    <result property="receiverName"    column="receiver_name"/>
+    <result property="receiverPhone"   column="receiver_phone"/>
+    <result property="divyAddr"        column="demailaddr"/>
+    <result property="divyRequest"     column="dlvy_request"/>
+    <result property="tranCode"        column="tran_status_code"/>
+    <!-- DB 컬럼명을 order_data 로 사용 -->
+    <result property="orderDate"       column="order_data"/>
+    <result property="divyDate"        column="dlvy_date"/>
+
+    <!-- 구매자 -->
+    <association property="buyer" javaType="user">
+      <id     property="userId"    column="buyer_id"/>
+      <result property="userName"  column="buyer_name"/>
+      <result property="email"     column="buyer_email"/>
+    </association>
+
+    <!-- 상품 -->
+    <association property="purchaseProd" javaType="product">
+      <id     property="prodNo"         column="prod_no"/>
+      <result property="prodName"       column="prod_name"/>
+      <result property="price"          column="price"/>
+      <result property="prodDetail"     column="prod_detail"/>
+      <result property="manufactureDay" column="manufacture_day"/>
+      <result property="imageFile"      column="image_file"/>
+    </association>
+  </resultMap>
+
+  <!-- =========================================================
+       INSERT : 신규 구매 등록
+       - tranCode NULL → NVL 처리 + jdbcType 명시
+       - divyDate 공란("") → NULL 처리
+     ========================================================= -->
+  <insert id="insertPurchase" parameterType="purchase">
+    <selectKey keyProperty="tranNo" resultType="int" order="BEFORE">
+      SELECT seq_transaction_tran_no.NEXTVAL FROM dual
+    </selectKey>
+
+    INSERT INTO transaction (
+      tran_no,
+      prod_no,
+      buyer_id,
+      payment_option,
+      receiver_name,
+      receiver_phone,
+      demailaddr,
+      dlvy_request,
+      tran_status_code,
+      order_data,
+      dlvy_date
+    ) VALUES (
+      #{tranNo},
+      #{purchaseProd.prodNo},
+      #{buyer.userId},
+      #{paymentOption},
+      #{receiverName},
+      #{receiverPhone},
+      #{divyAddr},
+      #{divyRequest},
+      NVL(#{tranCode, jdbcType=CHAR}, 'ODR'),   -- 기본값 ODR
+      SYSDATE,
+      CASE WHEN #{divyDate} IS NULL OR #{divyDate} = ''
+           THEN NULL
+           ELSE TO_DATE(#{divyDate}, 'YYYYMMDD')
+      END
+    )
+  </insert>
+
+  <!-- =========================================================
+       단건 조회 : tranNo로 구매 조회
+       - parameterType="int" → #{value} 사용
+     ========================================================= -->
+  <select id="getPurchase" parameterType="int" resultMap="PurchaseResult">
+    SELECT
+      t.tran_no, t.prod_no, t.buyer_id, t.payment_option,
+      t.receiver_name, t.receiver_phone,
+      t.demailaddr, t.dlvy_request, t.tran_status_code,
+      t.order_data, t.dlvy_date,
+      p.prod_name, p.price, p.prod_detail, p.manufacture_day, p.image_file,
+      u.user_name AS buyer_name, u.email AS buyer_email
+    FROM transaction t
+    JOIN product p ON p.prod_no = t.prod_no
+    JOIN users   u ON u.user_id = t.buyer_id
+    WHERE t.tran_no = #{value}
+  </select>
+
+  <!-- =========================================================
+       최근 거래번호 조회 : 구매자 + 상품
+     ========================================================= -->
+  <select id="getLatestTranNoByBuyerAndProd" parameterType="map" resultType="int">
+    SELECT tran_no
+    FROM (
+      SELECT t.tran_no
+      FROM transaction t
+      WHERE t.buyer_id = #{buyerId}
+        AND t.prod_no  = #{prodNo}
+      ORDER BY t.tran_no DESC
+    )
+    WHERE ROWNUM = 1
+  </select>
+
+  <!-- =========================================================
+       구매자별 목록
+     ========================================================= -->
+<!-- 구매자별 목록 : 페이징 적용 (startRow, endRow 필요) -->
+<select id="getPurchaseListByBuyer" parameterType="map" resultMap="PurchaseResult">
+  <![CDATA[
+  SELECT *
+  FROM (
+    SELECT inner_t.*, ROWNUM AS rnum
+    FROM (
+      SELECT
+          t.tran_no, t.prod_no, t.buyer_id, t.payment_option,
+          t.receiver_name, t.receiver_phone,
+          t.demailaddr, t.dlvy_request, t.tran_status_code,
+          t.order_data, t.dlvy_date,
+          p.prod_name, p.price, p.prod_detail, p.manufacture_day, p.image_file,
+          u.user_name AS buyer_name, u.email AS buyer_email
+      FROM transaction t
+      JOIN product p ON p.prod_no = t.prod_no
+      JOIN users   u ON u.user_id = t.buyer_id
+      WHERE t.buyer_id = #{buyerId}
+      ORDER BY t.tran_no DESC
+    ) inner_t
+    WHERE ROWNUM <= #{endRow}
+  )
+  WHERE rnum >= #{startRow}
+  ]]>
+</select>
+
+
+  <select id="getPurchaseListByBuyerCount" parameterType="map" resultType="int">
+  SELECT COUNT(*) FROM transaction WHERE buyer_id = #{buyerId}
+</select>
+
+
+  <!-- =========================================================
+       전체 판매 목록
+     ========================================================= -->
+  <select id="getSaleList" parameterType="search" resultMap="PurchaseResult">
+    SELECT
+      t.tran_no, t.prod_no, t.buyer_id, t.payment_option,
+      t.receiver_name, t.receiver_phone,
+      t.demailaddr, t.dlvy_request, t.tran_status_code,
+      t.order_data, t.dlvy_date,
+      p.prod_name, p.price, p.prod_detail, p.manufacture_day, p.image_file,
+      u.user_name AS buyer_name, u.email AS buyer_email
+    FROM transaction t
+    JOIN product p ON p.prod_no = t.prod_no
+    JOIN users   u ON u.user_id = t.buyer_id
+    ORDER BY t.tran_no DESC
+  </select>
+
+  <select id="getSaleListCount" resultType="int">
+    SELECT COUNT(*) FROM transaction
+  </select>
+
+  <!-- =========================================================
+       상태코드 변경
+     ========================================================= -->
+  <update id="updateTranCode" parameterType="map">
+    UPDATE transaction
+       SET tran_status_code = #{tranCode, jdbcType=CHAR}
+     WHERE tran_no = #{tranNo}
+  </update>
+
+  <update id="updateTranCodeByProd" parameterType="map">
+    UPDATE transaction
+       SET tran_status_code = #{tranCode, jdbcType=CHAR}
+     WHERE prod_no = #{prodNo}
+  </update>
+
+  <!-- =========================================================
+       구매 이력 여부
+     ========================================================= -->
+  <select id="hasPurchasedProduct" parameterType="map" resultType="int">
+    SELECT COUNT(1)
+      FROM transaction
+     WHERE buyer_id = #{buyerId}
+       AND prod_no  = #{prodNo}
+  </select>
+
+</mapper>

@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+  ProductMapper.xml  (Oracle + MyBatis)
+  - 등록/단건/부분검색/수정/목록+페이징/총건수/삭제(논리)
+  - 검색조건 : "0"=번호 LIKE, "1"=이름 LIKE, "2"=가격 =
+  - 페이징    : ROWNUM (startRow/endRow)
+  - status    : 최신 transaction.tran_status_code 기준으로 'SOLD_OUT' / 'ON_SALE'  (파생)
+  - 주의      : Oracle 문자열 결합은 CONCAT 대신 '||' 사용
+  - 변경점    : removeProduct → 실제 DELETE 대신 status='N' 논리삭제
+-->
+
+<mapper namespace="ProductMapper">
+
+  <!-- 공통 결과 매핑 -->
+  <resultMap id="ProductResult" type="com.model2.mvc.service.domain.Product">
+    <id     property="prodNo"         column="prod_no"/>
+    <result property="prodName"       column="prod_name"/>
+    <result property="prodDetail"     column="prod_detail"/>
+    <result property="manufactureDay" column="manufacture_day"/>
+    <result property="price"          column="price"/>
+    <result property="imageFile"      column="image_file"/>
+    <result property="imageFile2"     column="image_file2"/>
+    <result property="imageFile3"     column="image_file3"/>
+    <result property="regDate"        column="reg_date"/>
+    <!-- 주의: 아래 status는 '파생 값'(ON_SALE/SOLD_OUT) -->
+    <result property="status"         column="status"/>
+    <result property="tranCode"       column="tran_code"/>
+      <result property="activeFlag"     column="active_flag"/> 
+  </resultMap>
+
+  <!-- (재사용) 최신 거래 상태를 붙이기 위한 인라인뷰 -->
+  <sql id="LatestTranJoin">
+    LEFT JOIN (
+      SELECT tt.prod_no, tt.tran_status_code
+      FROM (
+        SELECT t.prod_no, t.tran_status_code,
+               ROW_NUMBER() OVER (PARTITION BY t.prod_no ORDER BY t.tran_no DESC) rn
+        FROM transaction t
+      ) tt
+      WHERE tt.rn = 1
+    ) x ON x.prod_no = p.prod_no
+  </sql>
+
+  <!-- (재사용) SELECT 컬럼 묶음 (status는 '파생'으로 계산해 노출) -->
+  <sql id="SelectColumnsWithStatus">
+    p.prod_no, p.prod_name, p.prod_detail, p.manufacture_day,
+    p.price, p.image_file, p.image_file2, p.image_file3, p.reg_date,  p.status AS active_flag,  
+    x.tran_status_code AS tran_code,
+    CASE
+      WHEN UPPER(TRIM(x.tran_status_code)) IN ('CMP','003','3') THEN 'SOLD_OUT'
+      ELSE 'ON_SALE'
+    END AS status
+  </sql>
+
+  <!-- INSERT : SEQ 선조회 → prodNo 세팅 → INSERT -->
+  <insert id="addProduct" parameterType="com.model2.mvc.service.domain.Product">
+    <selectKey keyProperty="prodNo" resultType="int" order="BEFORE">
+      SELECT seq_product_prod_no.NEXTVAL FROM dual
+    </selectKey>
+    INSERT INTO product
+      (prod_no, prod_name, prod_detail, manufacture_day, price,
+       image_file, image_file2, image_file3, reg_date)
+    VALUES
+      (#{prodNo}, #{prodName}, #{prodDetail},
+       REPLACE(#{manufactureDay}, '-', ''), #{price},
+       #{imageFile, jdbcType=VARCHAR}, #{imageFile2, jdbcType=VARCHAR}, #{imageFile3, jdbcType=VARCHAR},
+       SYSDATE)
+  </insert>
+
+  <!-- 단건 조회 : 최신 거래상태도 함께 조회 (파생 status 유지) -->
+  <select id="getProduct" parameterType="int" resultMap="ProductResult">
+    SELECT
+      <include refid="SelectColumnsWithStatus"/>
+    FROM product p
+    <include refid="LatestTranJoin"/>
+    WHERE p.prod_no = #{value}
+  </select>
+
+  <!-- 번호/이름 부분검색 (최신 등록 우선, 최대 8건) -->
+  <select id="findProduct" parameterType="string" resultMap="ProductResult">
+    <![CDATA[
+      SELECT *
+      FROM (
+        SELECT
+          p.prod_no, p.prod_name, p.prod_detail, p.manufacture_day,
+          p.price, p.image_file, p.image_file2, p.image_file3, p.reg_date
+        FROM product p
+        WHERE
+          LOWER(p.prod_name) LIKE LOWER('%' || #{_parameter} || '%')
+          OR TO_CHAR(p.prod_no) LIKE '%' || #{_parameter} || '%'
+        ORDER BY p.reg_date DESC, p.prod_no DESC
+      )
+      WHERE ROWNUM <= 8
+    ]]>
+  </select>
+
+  <!-- UPDATE : image_file* 는 null/빈 문자열이면 기존값 유지 -->
+  <update id="updateProduct" parameterType="com.model2.mvc.service.domain.Product">
+    UPDATE product
+    <set>
+      prod_name       = #{prodName},
+      prod_detail     = #{prodDetail},
+      manufacture_day = REPLACE(#{manufactureDay}, '-', ''),
+      price           = #{price},
+      <if test="imageFile != null and imageFile != ''">
+        image_file = #{imageFile, jdbcType=VARCHAR},
+      </if>
+      <if test="imageFile2 != null and imageFile2 != ''">
+        image_file2 = #{imageFile2, jdbcType=VARCHAR},
+      </if>
+      <if test="imageFile3 != null and imageFile3 != ''">
+        image_file3 = #{imageFile3, jdbcType=VARCHAR},
+      </if>
+    </set>
+    WHERE prod_no = #{prodNo}
+  </update>
+
+  <!-- 목록 + 검색 + 페이징(ROWNUM) : 파생 status/최신 tran_code 포함 -->
+  <!-- parameterType = com.model2.mvc.common.Search
+       필요 게터 : getSearchCondition(), getSearchKeyword(), getStartRowNum(), getEndRowNum() -->
+  <select id="getProductList"
+          parameterType="com.model2.mvc.common.Search"
+          resultMap="ProductResult">
+    SELECT * FROM (
+      SELECT inner_t.*, ROWNUM AS rnum
+      FROM (
+        SELECT
+          <include refid="SelectColumnsWithStatus"/>
+          
+          
+        FROM product p
+        <include refid="LatestTranJoin"/>
+        <where>
+        
+          <!-- 일반 사용자면 status='Y' 필터 적용 -->
+  <if test="_parameter.showInactive == null or _parameter.showInactive == false">
+    AND p.status = 'Y'
+  </if>
+        
+        
+          <!-- 번호 LIKE -->
+          <if test="searchCondition == 0 and searchKeyword != null and searchKeyword != ''">
+            AND TO_CHAR(p.prod_no) LIKE '%' || #{searchKeyword} || '%'
+          </if>
+          <!-- 이름 LIKE -->
+          <if test="searchCondition == 1 and searchKeyword != null and searchKeyword != ''">
+            AND LOWER(p.prod_name) LIKE LOWER('%' || #{searchKeyword} || '%')
+          </if>
+          <!-- 가격 = -->
+          <if test="searchCondition == 2 and searchKeyword != null and searchKeyword != ''">
+            AND p.price = #{searchKeyword, jdbcType=INTEGER}
+          </if>
+        </where>
+        ORDER BY p.prod_no DESC
+      ) inner_t
+      WHERE ROWNUM &lt;= #{endRowNum}
+    )
+    WHERE rnum &gt;= #{startRowNum}
+  </select>
+
+  <!-- 총 건수 : 목록과 동일한 WHERE 조건 유지 -->
+  <select id="getTotalCount"
+          parameterType="com.model2.mvc.common.Search"
+          resultType="int">
+    SELECT COUNT(*)
+    FROM product p
+    <where>
+      <if test="searchCondition == 0 and searchKeyword != null and searchKeyword != ''">
+        AND TO_CHAR(p.prod_no) LIKE '%' || #{searchKeyword} || '%'
+      </if>
+      <if test="searchCondition == 1 and searchKeyword != null and searchKeyword != ''">
+        AND LOWER(p.prod_name) LIKE LOWER('%' || #{searchKeyword} || '%')
+      </if>
+      <if test="searchCondition == 2 and searchKeyword != null and searchKeyword != ''">
+        AND p.price = #{searchKeyword, jdbcType=INTEGER}
+      </if>
+    </where>
+  </select>
+
+  <!-- ✅ 삭제(논리): 실제 DELETE 대신 status='N' -->
+  <update id="removeProduct" parameterType="int">
+    UPDATE product
+       SET status = 'N'
+     WHERE prod_no = #{value}
+       AND status  = 'Y'
+  </update>
+
+<!-- ✅ 단일 파라미터는 #{value} 로 -->
+<select id="getProductStatus" parameterType="int" resultType="string">
+  SELECT status
+    FROM product
+   WHERE prod_no = #{value}
+</select>
+
+<update id="deactivateProduct" parameterType="int">
+  UPDATE product
+     SET status='N'
+   WHERE prod_no = #{value}
+     AND status='Y'
+</update>
+
+<update id="activateProduct" parameterType="int">
+  UPDATE product
+     SET status='Y'
+   WHERE prod_no = #{value}
+     AND status='N'
+</update>
+
+</mapper>

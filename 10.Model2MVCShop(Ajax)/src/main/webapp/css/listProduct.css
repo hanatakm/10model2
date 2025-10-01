@@ -1,0 +1,70 @@
+@charset "UTF-8";
+
+.prod-grid {
+	display: grid;
+	grid-template-columns: repeat(5, 1fr); /* 한 줄에 5개 */
+	gap: 16px; /* 카드 간격 */
+	gap: 16px;
+	margin-top: 12px;
+}
+
+.prod-card {
+	border: 1px solid #e5e7eb;
+	border-radius: 12px;
+	overflow: hidden;
+	background: #fff;
+	box-shadow: 0 2px 10px rgba(0, 0, 0, .05);
+	cursor: pointer;
+	display: flex;
+	flex-direction: column;
+}
+
+.prod-thumb {
+	position: relative;
+	width: 100%;
+	padding-top: 66%;
+	overflow: hidden;
+	background: #f7f7f7;
+}
+
+.prod-thumb img {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.prod-body {
+	padding: 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.prod-name {
+	font-weight: 600;
+	line-height: 1.3;
+	min-height: 2.6em;
+	overflow: hidden;
+}
+
+.prod-price {
+	font-weight: 700;
+}
+
+.prod-meta {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	flex-wrap: wrap;
+	font-size: 12px;
+	color: #666;
+}
+
+.prod-status {
+	margin-top: 6px;
+	font-size: 12px;
+}
+/* 필요하면 테이블을 가려도 됨 */
+/* table + thead{ display:none; } */
