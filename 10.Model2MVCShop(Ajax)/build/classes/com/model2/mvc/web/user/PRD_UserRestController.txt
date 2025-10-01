@@ -1,0 +1,394 @@
+=================================================
+PRD : Product Requirement Document : 제품요구서 작성 : ???
+--------------------------------------------------
+-- 용어에 익숙해지자 
+: 구현요구사항을 AI 에 전달 하는 skill 을 익힘.
+: 요구사항을 정확히 지시 : Prompt Detail
+: 직접 지시가 아니라 AI 와 협업 
+   예> 이렇게 하려면 어떻게 해야해 ? 
+         : 난 알고 있지만. AI 가 생각하고 해결 할 수 있도록
+
+: Low-code / Prompt Engineering / Ai-assisted coding
+=================================================
+
+
+##### Prompt > UserRestController.java 구현
+
+
+0. UserService.java
+
+package com.model2.mvc.service.user;
+
+import java.util.Map;
+
+import com.model2.mvc.common.Search;
+import com.model2.mvc.service.domain.User;
+
+
+//==> 회원관리에서 서비스할 내용 추상화/캡슐화한 Service  Interface Definition  
+public interface UserService {
+	
+	// 회원가입
+	public void addUser(User user) throws Exception;
+	
+	// 내정보확인 / 로그인
+	public User getUser(String userId) throws Exception;
+	
+	// 회원정보리스트 
+	public Map<String , Object> getUserList(Search search) throws Exception;
+	
+	// 회원정보수정
+	public void updateUser(User user) throws Exception;
+	
+	// 회원 ID 중복 확인
+	public boolean checkDuplication(String userId) throws Exception;
+	
+}
+
+1. User.java 
+
+package com.model2.mvc.service.domain;
+
+import java.sql.Date;
+
+
+//==>회원정보를 모델링(추상화/캡슐화)한 Bean
+public class User {
+	
+	///Field
+	private String userId;
+	private String userName;
+	private String password;
+	private String role;
+	private String ssn;
+	private String phone;
+	private String addr;
+	private String email;
+	private Date regDate;
+	/////////////// EL 적용 위해 추가된 Field ///////////
+	private String phone1;
+	private String phone2;
+	private String phone3;
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	// JSON ==> Domain Object  Binding을 위해 추가된 부분
+	private String regDateString;
+
+	
+	
+	///Constructor
+	public User(){
+	}
+	
+	///Method 
+	public String getUserId() {
+		return userId;
+	}
+	public void setUserId(String userId) {
+		this.userId = userId;
+	}
+	public String getUserName() {
+		return userName;
+	}
+	public void setUserName(String userName) {
+		this.userName = userName;
+	}
+	public String getPassword() {
+		return password;
+	}
+	public void setPassword(String password) {
+		this.password = password;
+	}
+	public String getRole() {
+		return role;
+	}
+	public void setRole(String role) {
+		this.role = role;
+	}
+	public String getSsn() {
+		return ssn;
+	}
+	public void setSsn(String ssn) {
+		this.ssn = ssn;
+	}
+	public String getPhone() {
+		return phone;
+	}
+	public void setPhone(String phone) {
+		this.phone = phone;
+		/////////////// EL 적용 위해 추가 ///////////
+		if(phone != null && phone.length() !=0 ){
+			phone1 = phone.split("-")[0];
+			phone2 = phone.split("-")[1];
+			phone3 = phone.split("-")[2];
+		}
+	}
+	public String getAddr() {
+		return addr;
+	}
+	public void setAddr(String addr) {
+		this.addr = addr;
+	}
+	public String getEmail() {
+		return email;
+	}
+	public void setEmail(String email) {
+		this.email = email;
+	}
+	public Date getRegDate() {
+		return regDate;
+	}
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	// JSON ==> Domain Object  Binding을 위해 추가된 부분
+	public void setRegDate(Date regDate) {
+		this.regDate = regDate;
+		
+		if(regDate !=null) {
+			// JSON ==> Domain Object  Binding을 위해 추가된 부분
+			this.setRegDateString( regDate.toString().split("-")[0]
+													+"-"+ regDate.toString().split("-")[1]
+													+ "-" +regDate.toString().split("-")[2] );
+		}
+		
+	}
+	
+	/////////////// EL 적용 위해 추가된 getter Method ///////////
+	public String getPhone1() {
+		return phone1;
+	}
+	public String getPhone2() {
+		return phone2;
+	}
+	public String getPhone3() {
+		return phone3;
+	}
+
+	@Override
+	public String toString() {
+		return "UserVO : [userId] "+userId+" [userName] "+userName+" [password] "+password+" [role] "+ role
+			+" [ssn] "+ssn+" [phone] "+phone+" [email] "+email+" [regDate] "+regDate;
+	}
+	
+	////////////////////////////////////////////////////////////////////////////////////////
+	// JSON ==> Domain Object  Binding을 위해 추가된 부분
+	// POJO 의 중요성
+	public void setPhone1(String phone1) {
+		this.phone1 = phone1;
+	}
+	
+	public void setPhone2(String phone2) {
+		this.phone2 = phone2;
+	}
+	
+	public void setPhone3(String phone3) {
+		this.phone3 = phone3;
+	}
+	/////////////////////////////////////////////////////////////////////////////////////////
+
+	public String getRegDateString() {
+		return regDateString;
+	}
+
+	public void setRegDateString(String regDateString) {
+		this.regDateString = regDateString;
+	}
+}
+
+
+2. Search.java
+
+package com.model2.mvc.common;
+
+
+//==>리스트화면을 모델링(추상화/캡슐화)한 Bean 
+public class Search {
+	
+	///Field
+	private int currentPage;
+	private String searchCondition;
+	private String searchKeyword;
+	private int pageSize;
+	//==> 리스트화면 currentPage에 해당하는 회원정보를 ROWNUM 사용 SELECT 위해 추가된 Field 
+	//==> UserMapper.xml 의 
+	//==> <select  id="getUserList"  parameterType="search"	resultMap="userSelectMap">
+	//==> 참조
+	private int endRowNum;
+	private int startRowNum;
+	
+	///Constructor
+	public Search() {
+	}
+	
+	///Method
+	public int getPageSize() {
+		return pageSize;
+	}
+	public void setPageSize(int paseSize) {
+		this.pageSize = paseSize;
+	}
+	
+	public int getCurrentPage() {
+		return currentPage;
+	}
+	public void setCurrentPage(int currentPage) {
+		this.currentPage = currentPage;
+	}
+
+	public String getSearchCondition() {
+		return searchCondition;
+	}
+	public void setSearchCondition(String searchCondition) {
+		this.searchCondition = searchCondition;
+	}
+	
+	public String getSearchKeyword() {
+		return searchKeyword;
+	}
+	public void setSearchKeyword(String searchKeyword) {
+		this.searchKeyword = searchKeyword;
+	}
+	
+	//==> Select Query 시 ROWNUM 마지막 값 
+	public int getEndRowNum() {
+		return getCurrentPage()*getPageSize();
+	}
+	//==> Select Query 시 ROWNUM 시작 값
+	public int getStartRowNum() {
+		return (getCurrentPage()-1)*getPageSize()+1;
+	}
+
+	@Override
+	public String toString() {
+		return "Search [currentPage=" + currentPage + ", searchCondition="
+				+ searchCondition + ", searchKeyword=" + searchKeyword
+				+ ", pageSize=" + pageSize + ", endRowNum=" + endRowNum
+				+ ", startRowNum=" + startRowNum + "]";
+	}
+}
+
+
+3. UserService 각각의 Method 를 호출 UserRestController
+: URL Prefix : /user/json/
+: 회원가입 : /addUser
+: 로그인 : /login
+: 회원상세조회 : /getUser
+: 회원리스트 조회 : /getUserList
+: 회원정보수정 : /updatgeUser
+: 아이디중복 확인 : /checkDubplication
+
+4. 자세한 주석 처리 
+
+
+
+
+############  GPT 5
+
+package com.model2.mvc.web.user;
+
+import java.util.Map;
+
+import javax.servlet.http.HttpSession;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.web.bind.annotation.*;
+
+import com.model2.mvc.service.domain.User;
+import com.model2.mvc.service.user.UserService;
+import com.model2.mvc.common.Search;
+
+/**
+ * UserRestController.java
+ * 회원 관리를 위한 RESTful API 컨트롤러
+ * URL Prefix : /user/json/
+ */
+@RestController
+@RequestMapping("/user/*")
+public class UserRestController {
+
+    // UserService 주입 (userServiceImpl 빈을 주입)
+    @Autowired
+    @Qualifier("userServiceImpl")
+    private UserService userService;
+
+    public UserRestController() {
+        System.out.println("==> UserRestController 실행됨 : " + this.getClass());
+    }
+
+    /**
+     * 회원가입 요청 처리
+     * @param user 회원 정보 (JSON 형식으로 전달됨)
+     * @return 성공 여부 (true)
+     */
+    @PostMapping("json/addUser")
+    public boolean addUser(@RequestBody User user) throws Exception {
+        System.out.println("/user/json/addUser : POST 호출됨");
+        userService.addUser(user);
+        return true;
+    }
+
+    /**
+     * 로그인 요청 처리
+     * @param user 아이디 및 패스워드 정보 포함
+     * @param session 로그인 성공 시 세션에 저장
+     * @return DB에 저장된 사용자 정보 반환
+     */
+    @PostMapping("json/login")
+    public User login(@RequestBody User user, HttpSession session) throws Exception {
+        System.out.println("/user/json/login : POST 호출됨");
+
+        // 사용자 조회
+        User dbUser = userService.getUser(user.getUserId());
+
+        // 패스워드 일치 시 세션 저장
+        if (dbUser != null && user.getPassword().equals(dbUser.getPassword())) {
+            session.setAttribute("user", dbUser);
+        }
+
+        return dbUser;
+    }
+
+    /**
+     * 회원 상세 조회
+     * @param userId 조회할 회원의 ID
+     * @return 사용자 정보 반환
+     */
+    @GetMapping("json/getUser/{userId}")
+    public User getUser(@PathVariable String userId) throws Exception {
+        System.out.println("/user/json/getUser : GET 호출됨");
+        return userService.getUser(userId);
+    }
+
+    /**
+     * 회원 리스트 조회 (검색 + 페이징 지원)
+     * @param search 검색 조건 객체 (currentPage, searchKeyword 등 포함)
+     * @return 회원 목록 및 전체 수 등의 정보 포함 Map 반환
+     */
+    @PostMapping("json/getUserList")
+    public Map<String, Object> getUserList(@RequestBody Search search) throws Exception {
+        System.out.println("/user/json/getUserList : POST 호출됨");
+        return userService.getUserList(search);
+    }
+
+    /**
+     * 회원 정보 수정
+     * @param user 수정할 사용자 정보
+     * @return 성공 여부 (true)
+     */
+    @PostMapping("json/updateUser")
+    public boolean updateUser(@RequestBody User user) throws Exception {
+        System.out.println("/user/json/updateUser : POST 호출됨");
+        userService.updateUser(user);
+        return true;
+    }
+
+    /**
+     * 아이디 중복 확인
+     * @param userId 중복 체크할 아이디
+     * @return 중복 여부 (true: 중복 있음, false: 중복 없음)
+     */
+    @GetMapping("json/checkDuplication/{userId}")
+    public boolean checkDuplication(@PathVariable String userId) throws Exception {
+        System.out.println("/user/json/checkDuplication : GET 호출됨");
+        return userService.checkDuplication(userId);
+    }
+}
