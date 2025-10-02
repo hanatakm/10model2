@@ -94,8 +94,17 @@
 			});
 		});
 		
-	</script>		
-	
+	</script>	
+	<script src="https://developers.kakao.com/sdk/js/kakao.js"></script>
+<script>
+  Kakao.init("019c9af331f407abbe7bfc540c886286");	
+  function kakaoLogin(){
+	    // 서버 콜백으로 code 받는 표준 OAuth 흐름
+	    Kakao.Auth.authorize({
+	      redirectUri: "http://localhost:8080/user/kakao/callback"
+	    });
+	  }
+	</script>
 </head>
 
 <body bgcolor="#ffffff" text="#000000" >
@@ -170,8 +179,19 @@
                          <td width="70">
                        			<img src="/images/btn_add.gif" width="70" height="20" border="0">
                          </td>
+                         
+                         
                        </tr>
                      </table>
+                     
+                     <div style="margin-top:10px; text-align:center;">
+    <button type="button" onclick="kakaoLogin()" 
+            style="border:0;background:#FEE500;padding:8px 12px;border-radius:4px;cursor:pointer;">
+      카카오로 로그인
+    </button>
+  </div>
+</td>
+                     
                  </td>
                  <td width="20" height="20">&nbsp;</td>
                 </tr>

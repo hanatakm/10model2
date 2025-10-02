@@ -50,4 +50,18 @@ public class UserDaoImpl implements UserDao{
 	public int getTotalCount(Search search) throws Exception {
 		return sqlSession.selectOne("UserMapper.getTotalCount", search);
 	}
+
+	@Override
+	public User getUserByKakaoId(String kakaoId) throws Exception {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public void linkKakaoId(String userId, String kakaoId) throws Exception {
+		// TODO Auto-generated method stub
+		
+	}
+	
+	
 }
