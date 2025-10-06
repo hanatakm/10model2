@@ -24,4 +24,10 @@ public interface UserDao {
 	// 게시판 Page 처리를 위한 전체Row(totalCount)  return
 	public int getTotalCount(Search search) throws Exception ;
 	
+	// UserDao.java
+	User getUserByKakaoId(String kakaoId) throws Exception;
+	void linkKakaoId(String userId, String kakaoId) throws Exception;
+
+
+
 }

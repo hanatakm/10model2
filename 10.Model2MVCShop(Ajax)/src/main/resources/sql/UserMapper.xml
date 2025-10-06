@@ -17,7 +17,32 @@
 		<result property="addr" 				column="addr" 					jdbcType="VARCHAR" />
 		<result property="email" 			column="email" 				jdbcType="NUMERIC"  />
 		<result property="regDate" 		column="reg_date" 			jdbcType="DATE" />
+		<result property="kakaoId"    column="kakao_id"    jdbcType="VARCHAR"/>
+	
 	</resultMap>
+	
+	
+	<!-- ✅ (2) Kakao 전용 SELECT 쿼리 -->
+	<select id="getUserByKakaoId" parameterType="string" resultMap="userSelectMap">
+  SELECT 
+    user_id, user_name, password, role, ssn, cell_phone, addr, email, reg_date, kakao_id
+  FROM users
+  WHERE kakao_id = #{value}
+</select>
+
+	
+	
+
+	<!-- ✅ (3) Kakao ID를 기존 유저에 연결하는 UPDATE 쿼리 -->
+	<update id="linkKakaoId" parameterType="user">
+		UPDATE users
+		SET kakao_id = #{kakaoId}
+		WHERE user_id = #{userId}
+	</update>
+	
+	
+	
+	
 	
 	<!-- SQL : INSERT -->
 	<insert 	id="addUser"		parameterType="user" >

@@ -15,6 +15,10 @@ public class User {
 	private String phone;
 	private String addr;
 	private String email;
+	
+	private String kakaoId; 
+	
+	
 	private Date regDate;
 	/////////////// EL 적용 위해 추가된 Field ///////////
 	private String phone1;
@@ -31,12 +35,24 @@ public class User {
 	}
 	
 	///Method 
+	///
 	public String getUserId() {
 		return userId;
 	}
 	public void setUserId(String userId) {
 		this.userId = userId;
 	}
+	
+	// ✅ Getter/Setter 추가
+		public String getKakaoId() {
+			return kakaoId;
+		}
+
+		public void setKakaoId(String kakaoId) {
+			this.kakaoId = kakaoId;
+		}
+	
+	
 	public String getUserName() {
 		return userName;
 	}

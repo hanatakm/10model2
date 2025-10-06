@@ -94,8 +94,31 @@
 			});
 		});
 		
-	</script>		
-	
+	</script>	
+	<script src="https://developers.kakao.com/sdk/js/kakao.js"></script>
+<script>
+  Kakao.init("019c9af331f407abbe7bfc540c886286");
+
+  // ✅ 페이지가 프레임 안에서 열렸다면, 먼저 최상위 창으로 올려버리기(한 번만)
+  if (window.top !== window.self) {
+    window.top.location.href = window.location.href;
+  }
+
+  function kakaoLogin(){
+    // 혹시 버튼 클릭 시점에도 프레임이면 한 번 더 방어
+    if (window.top !== window.self) {
+      window.top.location.href = window.location.href;
+      return;
+    }
+
+    // ✅ 현재 접속한 호스트에 맞춰 콜백 생성(127/localhost 혼용 방지)
+    var redirect = window.location.origin + "/user/kakao/callback";
+    console.log("[Kakao] redirectUri =", redirect);
+
+    Kakao.Auth.authorize({ redirectUri: redirect });
+  }
+</script>
+
 </head>
 
 <body bgcolor="#ffffff" text="#000000" >
@@ -170,8 +193,19 @@
                          <td width="70">
                        			<img src="/images/btn_add.gif" width="70" height="20" border="0">
                          </td>
+                         
+                         
                        </tr>
                      </table>
+                     
+                     <div style="margin-top:10px; text-align:center;">
+    <button type="button" onclick="kakaoLogin()" 
+            style="border:0;background:#FEE500;padding:8px 12px;border-radius:4px;cursor:pointer;">
+      카카오로 로그인
+    </button>
+  </div>
+</td>
+                     
                  </td>
                  <td width="20" height="20">&nbsp;</td>
                 </tr>

@@ -50,4 +50,20 @@ public class UserDaoImpl implements UserDao{
 	public int getTotalCount(Search search) throws Exception {
 		return sqlSession.selectOne("UserMapper.getTotalCount", search);
 	}
+
+	@Override
+	public User getUserByKakaoId(String kakaoId) throws Exception {
+	    return sqlSession.selectOne("UserMapper.getUserByKakaoId", kakaoId);
+	}
+
+	@Override
+	public void linkKakaoId(String userId, String kakaoId) throws Exception {
+	    java.util.Map<String, Object> map = new java.util.HashMap<>();
+	    map.put("userId", userId);
+	    map.put("kakaoId", kakaoId);
+	    sqlSession.update("UserMapper.linkKakaoId", map);
+	}
+
+	
+	
 }
