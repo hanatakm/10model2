@@ -48,6 +48,13 @@
 				<mvc:mapping path="/user/**"/> 
 			-->
 			<mvc:mapping path="/user/*"/>
+			
+			
+			
+			 <mvc:exclude-mapping path="/user/login"/>
+    <mvc:exclude-mapping path="/user/loginView.jsp"/>
+    <mvc:exclude-mapping path="/user/json/login"/>
+			 <mvc:exclude-mapping path="/user/kakao/*"/>
 			<bean class="com.model2.mvc.common.web.LogonCheckInterceptor" />
    		</mvc:interceptor>
 

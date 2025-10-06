@@ -53,15 +53,17 @@ public class UserDaoImpl implements UserDao{
 
 	@Override
 	public User getUserByKakaoId(String kakaoId) throws Exception {
-		// TODO Auto-generated method stub
-		return null;
+	    return sqlSession.selectOne("UserMapper.getUserByKakaoId", kakaoId);
 	}
 
 	@Override
 	public void linkKakaoId(String userId, String kakaoId) throws Exception {
-		// TODO Auto-generated method stub
-		
+	    java.util.Map<String, Object> map = new java.util.HashMap<>();
+	    map.put("userId", userId);
+	    map.put("kakaoId", kakaoId);
+	    sqlSession.update("UserMapper.linkKakaoId", map);
 	}
+
 	
 	
 }

@@ -97,14 +97,28 @@
 	</script>	
 	<script src="https://developers.kakao.com/sdk/js/kakao.js"></script>
 <script>
-  Kakao.init("019c9af331f407abbe7bfc540c886286");	
+  Kakao.init("019c9af331f407abbe7bfc540c886286");
+
+  // ✅ 페이지가 프레임 안에서 열렸다면, 먼저 최상위 창으로 올려버리기(한 번만)
+  if (window.top !== window.self) {
+    window.top.location.href = window.location.href;
+  }
+
   function kakaoLogin(){
-	    // 서버 콜백으로 code 받는 표준 OAuth 흐름
-	    Kakao.Auth.authorize({
-	      redirectUri: "http://localhost:8080/user/kakao/callback"
-	    });
-	  }
-	</script>
+    // 혹시 버튼 클릭 시점에도 프레임이면 한 번 더 방어
+    if (window.top !== window.self) {
+      window.top.location.href = window.location.href;
+      return;
+    }
+
+    // ✅ 현재 접속한 호스트에 맞춰 콜백 생성(127/localhost 혼용 방지)
+    var redirect = window.location.origin + "/user/kakao/callback";
+    console.log("[Kakao] redirectUri =", redirect);
+
+    Kakao.Auth.authorize({ redirectUri: redirect });
+  }
+</script>
+
 </head>
 
 <body bgcolor="#ffffff" text="#000000" >
